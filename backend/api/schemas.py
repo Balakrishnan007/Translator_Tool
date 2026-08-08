@@ -69,20 +69,6 @@ class SegmentEditRequest(BaseModel):
     translation_text: str
 
 
-class SegmentResponse(BaseModel):
-    """A project's original, untranslated segments: spec section 4's
-    "Links: Originaltext" side of the preview, viewable before any
-    translation exists."""
-    id: uuid.UUID
-    original_id: str
-    order: int
-    type: str
-    text: str
-    structure: dict
-
-    model_config = {"from_attributes": True}
-
-
 class TranslationDetailResponse(TranslationResponse):
     """Extends TranslationResponse (real inheritance, not just similar
     shape) with the actual translated content. This is what the polling

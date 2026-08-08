@@ -23,7 +23,7 @@ from ai.tracing import flush_tracing
 from ai.glossary_loader import load_glossary
 from ai.translator import translate_document
 from ai.quality_check import run_quality_check
-from api.schemas import ProjectResponse, TranslationCreateRequest, TranslationResponse, TranslationDetailResponse, TranslatedSegmentResponse, QualityCheckResponse, SegmentResponse, SegmentEditRequest
+from api.schemas import ProjectResponse, TranslationCreateRequest, TranslationResponse, TranslationDetailResponse, TranslatedSegmentResponse, QualityCheckResponse, SegmentEditRequest
 
 app = FastAPI(title="Rotpunkt Translator API")
 
@@ -199,34 +199,6 @@ async def create_project(file: UploadFile = File(...), session: Session = Depend
         return _project_to_response(project, validation["segment_count"], detection["language"], detection["confidence"])
     finally:
         os.unlink(tmp_path)
-
-
-@app.get("/projects", response_model=list[ProjectResponse])
-def list_projects(session: Session = Depends(get_session)):
-    projects = crud.list_projects(session)
-    return [
-        _project_to_response(p, crud.count_segments(session, p.id), p.source_language, p.detection_confidence)
-        for p in projects
-    ]
-
-
-@app.get("/projects/{project_id}", response_model=ProjectResponse)
-def read_project(project_id: uuid.UUID, session: Session = Depends(get_session)):
-    project = crud.get_project(session, project_id)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    return _project_to_response(project, crud.count_segments(session, project_id), project.source_language, project.detection_confidence)
-
-
-@app.get("/projects/{project_id}/segments", response_model=list[SegmentResponse])
-def read_segments(project_id: uuid.UUID, session: Session = Depends(get_session)):
-    project = crud.get_project(session, project_id)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    segments = crud.get_segments(session, project_id)
-    return [SegmentResponse.model_validate(s) for s in segments]
 
 
 @app.post("/projects/{project_id}/translations", response_model=list[TranslationResponse], status_code=202)

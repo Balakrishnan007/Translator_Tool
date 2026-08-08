@@ -511,6 +511,18 @@ button:disabled {
   margin-bottom: 16px;
 }
 
+.download-original-link {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  margin-bottom: 16px;
+}
+
+.download-original-link:hover {
+  color: var(--text);
+}
+
 .export-controls {
   display: flex;
   align-items: flex-end;

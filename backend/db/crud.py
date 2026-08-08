@@ -7,7 +7,7 @@ one real step in the actual flow: upload -> detect -> translate -> view.
 
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from db.models import Project, Segment, Translation, TranslatedSegment
@@ -111,26 +111,10 @@ def get_project(session: Session, project_id: uuid.UUID) -> Project | None:
     return session.get(Project, project_id)
 
 
-def list_projects(session: Session) -> list[Project]:
-    """Optional listing endpoint's backing query. Newest first, so the
-    most recently uploaded document shows up on top."""
-    return list(session.scalars(select(Project).order_by(Project.uploaded_at.desc())))
-
-
 def get_segments(session: Session, project_id: uuid.UUID) -> list[Segment]:
     return list(session.scalars(
         select(Segment).where(Segment.project_id == project_id).order_by(Segment.order)
     ))
-
-
-def count_segments(session: Session, project_id: uuid.UUID) -> int:
-    """A dedicated COUNT query, not len(project.segments). The latter
-    would lazy-load every segment row into memory just to count them
-    (300+ rows for a real document), wasteful when the database can answer
-    "how many" without transferring any row data at all."""
-    return session.scalar(
-        select(func.count()).select_from(Segment).where(Segment.project_id == project_id)
-    )
 
 
 def get_translation(session: Session, translation_id: uuid.UUID) -> Translation | None:

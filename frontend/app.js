@@ -730,6 +730,7 @@ function renderExportSection() {
   return `
     <div class="export-section">
       <h2>Export</h2>
+      <a class="download-original-link" href="${API_BASE}/projects/${state.project.id}/file" download>Original herunterladen</a>
       <div class="export-controls">
         <label class="export-field">
           Format
