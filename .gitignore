@@ -21,3 +21,6 @@ Thumbs.db
 
 # Work-in-progress presentation drafts, not ready to share yet
 Presentation/
+
+# Internal notes used to generate the synthetic dataset, not for sharing
+dataset/dataset_brief_for_claude_chat.md
