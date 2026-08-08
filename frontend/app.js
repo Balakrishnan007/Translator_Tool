@@ -573,7 +573,7 @@ function renderApprovalSection(detail) {
     return `
       <div class="approval-section approval-done">
         <span class="approval-icon">✓</span>
-        <span>Freigegeben — Export ist verfügbar.</span>
+        <span>Freigegeben: Export ist verfügbar.</span>
       </div>
       ${renderExportSection()}
       <div class="new-translation-section">
@@ -707,7 +707,7 @@ function renderQualitySection(qualityCheck) {
 
   return `
     <div class="quality-section quality-has-warnings">
-      <h2>Qualitätsprüfung — ${qualityCheck.warning_count} Hinweis(e)</h2>
+      <h2>Qualitätsprüfung: ${qualityCheck.warning_count} Hinweis(e)</h2>
       <div class="warning-list">
         ${qualityCheck.warnings
           .map(
