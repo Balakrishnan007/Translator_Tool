@@ -1,4 +1,4 @@
-# Secrets -- never commit, anywhere in the tree
+# Secrets: never commit, anywhere in the tree
 .env
 **/.env
 
@@ -24,3 +24,7 @@ Presentation/
 
 # Internal notes used to generate the synthetic dataset, not for sharing
 dataset/dataset_brief_for_claude_chat.md
+
+# Interviewer's own task-brief documents, kept locally, not for redistribution
+Translation_Tool_for_Rotpunkt_Kitchens_EN.pdf
+Übersetzungstool für Rotpunkt Küchen.pdf
