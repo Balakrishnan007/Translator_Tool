@@ -282,9 +282,11 @@ not the full running list kept during development.
 ## Path to production
 
 This is an MVP built to prove the core mechanism, glossary-constrained, self-classifying,
-quality-checked translation, actually works, not the final system. The table below covers two
-different kinds of gaps: features the spec describes that were deliberately scoped down, and
-operational concerns that any MVP skips but a real deployment can't.
+quality-checked translation, actually works, not the final system. Two different kinds of gaps
+remain: product features the spec describes that were deliberately scoped down, and operational
+maturity that any MVP skips but a real deployment can't.
+
+### Feature scope
 
 | Area | Current state (MVP) | Production approach |
 |---|---|---|
@@ -292,12 +294,19 @@ operational concerns that any MVP skips but a real deployment can't.
 | Quality check on tables | The contradiction-detector occasionally flags a table's own column header as "translated differently," since it groups by literal term name across the whole document | Exclude terms whose position marks them as a column header from the cross-document contradiction check |
 | Glossary data integrity | A few rows in the source spreadsheet have values in the wrong columns (confirmed by reading the raw cells directly, a data issue, not a parsing bug) | A real glossary management interface would validate this exact shape of error at entry time |
 | Glossary maintenance | A spreadsheet, reloaded fresh on every translation; adding a term means editing the file directly | A dedicated database table with a management UI: add/edit/delete, versioning, an approval workflow (spec §7) |
-| Manual editing | One capability: overwrite a segment's translation text | Term-replace-everywhere, glossary additions from the review screen, comments, re-running the AI on a single segment (spec §6) |
 | Users & permissions | None, single implicit user | Role-based access: Übersetzer / Prüfer / Administrator (spec §13) |
 | Project lifecycle | No archive, search, or history across sessions | Status transitions, search/filter, audit trail (spec §1, §11, §12) |
-| Job execution | FastAPI `BackgroundTasks`, single process, in-memory, lost on restart | A real job queue (Celery/Redis or similar) that survives restarts and scales across workers |
-| Deployment | Local processes on one machine | Central webserver, concurrent multi-user access, responsive UI (spec §16) |
 | Repeat content | Every segment translated fresh, every time | Translation memory: cache and reuse previous translations for repeated content (spec Phase 2) |
+
+### Production readiness
+
+Sized for the actual target: one internal team, roughly 10 concurrent users, not a public
+consumer product. That target shapes every choice below.
+
+| Area | Current state (MVP) | Production approach |
+|---|---|---|
+| Service architecture | A modular monolith: `api → db → ai → parsers`, one deployable unit | Stays a monolith. Microservices only pay off with independent per-service scaling or multiple teams deploying independently; neither applies to one team's internal tool |
+| Deployment & scaling | Local processes, started manually on one machine | Docker Compose (API + Postgres containers) on a single server is enough for ~10 concurrent users. Kubernetes becomes justified past 100k+ daily users, 5+ services needing independent scaling, or multiple teams deploying independently, none of which apply here |
 | Security & input hardening | `upload_validator.py` checks file signature, structure, and real parseability before anything touches the AI; no auth on any endpoint, no request rate limiting | Auth per user, rate limiting, a hard upload size ceiling enforced before a file ever reaches the parser, dependency and file-format vulnerability scanning |
 | Cost control | Prompt caching already cuts repeated system-prompt cost, but nothing stops one user from re-translating the same document 20 times in a row | Per-user/per-project quotas, translation memory doing double duty as a cost control, cost dashboards built on the same Langfuse data already being captured |
 | Monitoring & alerting | Langfuse shows what happened on any single call, after the fact, only if someone opens the dashboard | Alerting on job failure rate, latency, and cost thresholds; a health-check endpoint wired into real uptime monitoring |
