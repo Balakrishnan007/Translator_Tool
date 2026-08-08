@@ -5,9 +5,6 @@ An AI-powered document translation prototype built as a technical deliverable fo
 (Word, Excel, PDF) while enforcing a company-specific glossary, classifying every notable term
 it encounters, running an automated quality check, and requiring human approval before export.
 
-> Independent prototype built for an interview process, not an official Rotpunkt Küchen
-> project, and not affiliated with the company.
-
 ---
 
 ## Table of contents
@@ -34,16 +31,16 @@ Upload (.docx / .xlsx / .pdf)
 Parse into segments (paragraph / table row / table cell)
         │
         ▼
-Detect source language  ─── 1 AI call, sampled across the whole document
+Detect source language (1 AI call, sampled across the whole document)
         │
         ▼
-Select target language(s)  ─── one or several at once
+Select target language(s) (one or several at once)
         │
         ▼
-Translate + classify every segment, every language  ─── concurrently, not one at a time
+Translate + classify every segment, every language (concurrently, not one at a time)
         │
         ▼
-Automatic quality check  ─── plain code, catches what parallel AI calls can't see themselves
+Automatic quality check (plain code, catches what parallel AI calls can't see themselves)
         │
         ▼
 Review: side-by-side view, color-coded terms, click any term for detail
@@ -52,7 +49,7 @@ Review: side-by-side view, color-coded terms, click any term for detail
 Manual correction (optional)
         │
         ▼
-Approval  ─── export is locked until this happens
+Approval (export is locked until this happens)
         │
         ▼
 Export (Word / Excel / PDF: translation only, bilingual, or a quality report)
@@ -140,11 +137,10 @@ there's no shared parser underneath:
 
 Whatever the format, the output is the same shape: an ordered list of small, independent
 **segments**: a paragraph, a table row, or a single table cell, never the whole document at
-once. This granularity is a deliberate middle ground: sentence-level would lose paragraph
-context, whole-document-level would mean one bad response forces a retry of the entire document
-and blocks any parallel translation. Paragraph/cell-level is small enough to retry cheaply and
-translate concurrently, and large enough to still mean something on its own, and it happens to
-match exactly what the review screen needs anyway: one editable, one highlightable unit per row.
+once. This granularity is a deliberate middle ground between sentence-level (loses paragraph
+context) and whole-document-level (one bad response forces a retry of everything and blocks
+parallel translation). It's also exactly the unit the review screen needs anyway: one editable,
+one highlightable row per segment.
 
 Table cells also carry extra context forward: their column header and the rest of that row,
 since a bare cell containing just `"900"` would otherwise be meaningless in isolation.
@@ -156,11 +152,11 @@ tested directly first and rejected: neither reliably cleared 90% confidence acro
 test documents, tripped up by short technical fragments and by vocabulary shared between related
 languages (e.g. "Korpus" is spelled identically in German and Dutch).
 
-It does not read the whole document, and it does not just read the start. Very short segments
-(under 15 characters) are discarded as unhelpful, and the first couple of remaining segments are
-skipped too, specifically to avoid a letterhead or title line in one language skewing a document
-that's actually written in another. From what's left, an evenly-spaced sample is taken across
-the *entire* document (roughly every Nth segment, not the first N), capped at a modest amount
+Detection works from a sample, not the full document. Very short segments (under 15 characters)
+are discarded as unhelpful, and the first couple of remaining segments are skipped too,
+specifically to avoid a letterhead or title line in one language skewing a document that's
+actually written in another. From what's left, an evenly-spaced sample is taken across the
+*entire* document, roughly every Nth segment rather than the first N, capped at a modest amount
 of total text. Research on language identification specifically found that accuracy plateaus
 around that size, and more text beyond it tends to add noise rather than help; this was
 confirmed by testing, not just assumed, at 9 out of 9 real documents correctly identified. That
@@ -195,7 +191,7 @@ of every notable term it noticed. For each term, it must decide exactly one cate
 - **protected**: matched a do-not-translate entry, left unchanged
 - **kitchen_technical**: a real kitchen/furniture-industry term it recognizes, not in the
   glossary, confidently handled. Explicitly *not* generic IT, business, or HR terminology, even
-  if recognized just as confidently
+  when equally well recognized
 - **ambiguous**: more than one translation is plausible, not fully certain which fits
 - **unknown**: anything else it's unsure about, or a confidently-recognized technical term that
   simply falls outside the kitchen/furniture domain
@@ -231,8 +227,8 @@ never be hallucinated.
 Every segment, for every target language, is translated at the same time, not one after another:
 translating to English and Dutch happens simultaneously, not sequentially. The direct cost of
 that speed: since each call is fully isolated, the segment translated 50th has no idea what the
-segment translated 200th decided for the exact same word. Because that blind spot is structural,
-not accidental, a separate, plain-code audit pass runs afterward, once every result is back,
+segment translated 200th decided for the exact same word. So a separate, plain-code audit pass
+runs afterward, once every result is back,
 re-reading the finished translation as a whole specifically to catch what isolated parallel
 calls can never catch themselves: the same term rendered differently in different places, a
 number that silently changed decimal format partway through the document, a segment that still
@@ -255,9 +251,8 @@ of knowing: which operation this was, which language pair, whether the glossary 
 which segment. That's what makes traces actually searchable afterward, rather than just a flat
 list of API calls. It's also built to fail safe: if tracing isn't configured, it quietly does
 nothing rather than ever being a reason a translation fails. What it actually shows, per call:
-the full prompt sent, the full response, cost, latency, and specifically how much of the prompt
-was served from cache versus written fresh, which is what makes the prompt-caching design
-something that's verifiable, not just claimed.
+the full prompt sent, the full response, cost, latency, and how much of the prompt was served
+from cache versus written fresh.
 
 ## Key decisions, and why
 
@@ -276,14 +271,13 @@ something that's verifiable, not just claimed.
 
 ## Real bugs found and fixed during development
 
-Found through testing against real documents, not hypothetical edge cases. A representative 3,
+Found through testing against real documents, not hypothetical edge cases. A representative 2,
 not the full running list kept during development.
 
 | Bug | Root cause | Fix |
 |---|---|---|
 | A systemic failure (e.g. an invalid target-language name) marked a translation job "done" even though every segment inside it had failed | `translate_document()` catches failures *per segment* on purpose, so one bad segment never kills the whole batch, but that also meant a systemic failure never raised at the job level | Check whether *every* segment in a batch failed; if so, mark the job `failed` with the underlying error, not `done` |
 | The AI invented markdown-link formatting around a plain URL and corrupted it while doing so | The model was being asked to faithfully reproduce a real URL as plain text | Placeholder substitution: the model never sees or has to reproduce the actual URL |
-| Langfuse showed zero traces despite dozens of real translations run through the live app | `flush_tracing()` was only ever called from standalone test scripts. The live FastAPI server never called it, and `uvicorn --reload` restarts the whole process (wiping unflushed spans) on every code edit | Added a flush call to the background translation job's `finally` block, runs after the HTTP response is already sent, costing the user nothing |
 
 ## Path to production
 
