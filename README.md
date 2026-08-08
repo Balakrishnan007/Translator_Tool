@@ -69,7 +69,8 @@ The dataset (`dataset/`) was built to actually exercise the tool, not just demon
   runs 8 pages and includes several real tables (pricing, hardware specifications, dimensions),
   since a short, single-paragraph sample would never have exercised the parsing, table-context,
   and quality-check logic the way an actual business document does
-- A company glossary spreadsheet, structured to match what the spec describes (§7)
+- A company glossary spreadsheet (§7): one row per term, with a term column and a synonym
+  column for each of the 4 languages, plus a category and a do-not-translate flag
 - Content generated with Claude's assistance, from a written brief describing what each
   document needed to contain and why (kept in the dataset folder itself as
   `dataset_brief_for_claude_chat.md`)
@@ -174,9 +175,10 @@ For every segment, for every target language, a request is assembled from four i
   translates as just that value, without inventing a sentence around it; and every notable term
   encountered must be classified into one of 5 fixed categories.
 - **The glossary**, filtered down to only the entries relevant to this exact source-to-target
-  language pair. Synonyms are included too, but only from the synonym column matching the
-  document's own source language: a German document is never checked against English synonyms,
-  since it could never contain one.
+  language pair: each entry reduced to `{term, translation, do_not_translate, synonyms}` and
+  JSON-encoded into the prompt, not the full spreadsheet row. Synonyms are included too, but only
+  from the synonym column matching the document's own source language: a German document is
+  never checked against English synonyms, since it could never contain one.
 - **Context**, for table cells only: the column header plus the rest of that row.
 - **The text itself**, with any URLs already swapped for opaque placeholder tokens so they can
   never be misread, reformatted, or corrupted along the way.
