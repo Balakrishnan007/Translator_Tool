@@ -22,7 +22,7 @@ def test_detects_true_headings_by_style(dataset_dir):
 
 def test_catches_the_deliberately_broken_heading(dataset_dir):
     """Section 6's heading is intentionally styled as plain text, not a real
-    heading -- this is the formatting-irregularity trigger the dataset was
+    heading. This is the formatting-irregularity trigger the dataset was
     built to test. If this ever starts passing as a real heading, the
     quality-check formatting detector downstream would silently miss it."""
     segments = parse_docx(f"{dataset_dir}\\01_DE_word_technical_spec.docx")

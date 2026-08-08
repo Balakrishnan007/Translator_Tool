@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """Pop up a real file picker, validate whatever you choose, and show the result.
-Run with: uv run python pick_and_validate.py
+Run with: uv run python scripts/pick_and_validate.py
 """
 
+import os
+import sys
 import tkinter as tk
 from tkinter import filedialog
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from parsers.upload_validator import validate_upload
 
 

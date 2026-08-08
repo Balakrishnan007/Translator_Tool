@@ -8,8 +8,8 @@ Checks, in order (fail fast on the first problem):
 4. Actual file signature matches the claimed type (an image renamed to .docx
    should not pass just because of its extension)
 5. For docx/xlsx specifically: the zip internally contains the right OOXML
-   part (word/document.xml or xl/workbook.xml) -- both formats are zip files,
-   so the raw signature alone can't tell them apart
+   part (word/document.xml or xl/workbook.xml), since both formats are zip
+   files, so the raw signature alone can't tell them apart
 6. The file can actually be opened by the real parser without raising
 7. The parser actually extracted at least one non-empty segment (catches a
    structurally valid but text-empty document, e.g. a scanned/image-only PDF)
@@ -57,7 +57,7 @@ def validate_upload(file_path: str) -> dict:
     if not header.startswith(expected_sig):
         return _fail(
             f"File content doesn't match a valid {ext} file "
-            f"(this usually means the file was renamed, not actually converted -- "
+            f"(this usually means the file was renamed, not actually converted, "
             f"e.g. an image or other file type given a .{ext.strip('.')} extension)."
         )
 
@@ -69,7 +69,7 @@ def validate_upload(file_path: str) -> dict:
                 if OOXML_MARKER[ext] not in names:
                     return _fail(
                         f"File is a valid zip archive but not a real {ext} document "
-                        f"(missing {OOXML_MARKER[ext]} -- this can happen if a .zip or "
+                        f"(missing {OOXML_MARKER[ext]}, which can happen if a .zip or "
                         f"other archive was renamed to {ext})."
                     )
         except zipfile.BadZipFile:
@@ -84,8 +84,8 @@ def validate_upload(file_path: str) -> dict:
     if not segments:
         return _fail(
             "No extractable text was found in this file. If this is a PDF, it may be a "
-            "scanned/image-only document with no real text layer -- OCR would be needed, "
-            "which isn't supported yet."
+            "scanned/image-only document with no real text layer, which would need OCR "
+            "that isn't supported yet."
         )
 
     return {"valid": True, "error": None, "segment_count": len(segments), "segments": segments}

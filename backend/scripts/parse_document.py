@@ -3,10 +3,10 @@
 
 Detects the file type from its extension, validates it, runs the correct
 parser, prints a summary, and saves the resulting chunks to disk as JSON
-so they persist and can be inspected -- not just printed and discarded.
+so they persist and can be inspected, not just printed and discarded.
 
 Usage:
-    uv run python parse_document.py <path-to-file>
+    uv run python scripts/parse_document.py <path-to-file>
 """
 
 import sys
@@ -14,6 +14,7 @@ import os
 import json
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from parsers.upload_validator import validate_upload
 from parsers.word_parser import parse_docx
 from parsers.excel_parser import parse_xlsx
@@ -25,7 +26,7 @@ PARSERS = {
     ".pdf": parse_pdf,
 }
 
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "chunks")
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chunks")
 
 
 def parse_document(file_path: str) -> dict:
@@ -61,7 +62,7 @@ def main():
     result = parse_document(file_path)
 
     if not result["ok"]:
-        print(f"REJECTED — {result['error']}")
+        print(f"REJECTED: {result['error']}")
         sys.exit(1)
 
     print(f"Parsed: {result['file']}")

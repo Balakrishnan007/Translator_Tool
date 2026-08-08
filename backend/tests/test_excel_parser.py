@@ -24,7 +24,7 @@ def test_data_rows_not_flagged_as_header(dataset_dir):
 
 def test_row_bundles_all_columns_with_context(dataset_dir):
     """A data row should carry every column together (article number, name,
-    material, price, ...), not just an isolated cell -- that's the whole
+    material, price, ...), not just an isolated cell. That's the whole
     point of row-level over cell-level chunking."""
     segments = parse_xlsx(f"{dataset_dir}\\02_DE_Excel_Preisliste_Linea120.xlsx")
     data_row = next(s for s in segments if not s["is_header"])

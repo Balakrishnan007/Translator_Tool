@@ -12,7 +12,7 @@ def test_all_8_pages_represented(dataset_dir):
 
 def test_deliberately_untranslated_tagline_present(dataset_dir):
     """'Timeless Living' is the deliberately-kept-in-English marketing tagline
-    built into this document -- confirms text extraction isn't mangling it."""
+    built into this document. Confirms text extraction isn't mangling it."""
     segments = parse_pdf(f"{dataset_dir}\\03_DE_PDF_Katalog_Forma90.pdf")
     assert any("Timeless Living" in s["text"] for s in segments)
 
