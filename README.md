@@ -239,8 +239,9 @@ consumer product. That target shapes every row below.
 
 | Area | Current state (MVP) | Production approach |
 |---|---|---|
-| Service architecture | A modular monolith: `api → db → ai → parsers`, one deployable unit | Stays a monolith. Microservices only pay off with independent per-service scaling or multiple teams deploying independently; neither applies here |
-| Deployment & scaling | Local processes, started manually on one machine | Docker Compose (API + Postgres containers) on a single server is enough for ~10 concurrent users. Kubernetes becomes justified past 100k+ daily users or 5+ independently-scaling services, neither of which applies here |
+| Service architecture | A modular monolith: `api → db → ai → parsers`, one deployable unit | Stays a monolith, deployed as a single unit |
+| Deployment & scaling | Local processes, started manually on one machine | Docker Compose (API + Postgres containers) on a single server |
+| API versioning | Routes are unprefixed (`/projects`, `/projects/{id}/translations`, ...) | Prefix routes under `/v1/` before any external or third-party integration depends on the API |
 | Security & input hardening | `upload_validator.py` checks file signature, structure, and real parseability before anything reaches the AI; no auth on any endpoint, no rate limiting | Auth per user, rate limiting, a hard upload size ceiling enforced before a file reaches the parser, dependency and file-format vulnerability scanning |
 | Cost control | Prompt caching already cuts repeated system-prompt cost, but nothing stops one user from re-translating the same document 20 times in a row | Per-user/per-project quotas, plus cost dashboards built on the same Langfuse data already captured. Translation memory (see Feature scope above) would help here too, as a side effect |
 | Monitoring & alerting | Langfuse shows what happened on any single call, after the fact, only if someone opens the dashboard | Alerting on job failure rate, latency, and cost thresholds; a health-check endpoint wired into real uptime monitoring |
