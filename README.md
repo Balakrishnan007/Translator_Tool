@@ -15,10 +15,9 @@ it encounters, running an automated quality check, and requiring human approval 
 4. [Architecture](#architecture)
 5. [How a translation works](#how-a-translation-works)
 6. [Key decisions, and why](#key-decisions-and-why)
-7. [Bugs found and fixed during development](#bugs-found-and-fixed-during-development)
-8. [Path to production](#path-to-production)
-9. [Project structure](#project-structure)
-10. [Running it yourself](#running-it-yourself)
+7. [Path to production](#path-to-production)
+8. [Project structure](#project-structure)
+9. [Running it yourself](#running-it-yourself)
 
 ---
 
@@ -210,17 +209,9 @@ configured, tracing quietly does nothing rather than breaking a translation.
 | Database schema | Postgres + SQLAlchemy + Alembic migrations | JSONB columns for `terms` (per-term classification) and `structure` (format-specific parser output): genuinely variable shape, would be mostly-empty rigid columns otherwise. |
 | Prompt caching | `cache_control: ephemeral` on the system prompt, verified via real token accounting | The system prompt (rules + glossary) is identical across every segment call for a given language pair; the per-segment context is deliberately kept *out* of the cached prefix, since interpolating it in defeats caching (the prefix would differ on every call, meaning nothing is ever a cache hit). |
 | URL handling | Placeholder substitution (`__URL_0__`) before the AI ever sees a URL | The model once invented markdown link syntax around a plain URL and corrupted it in the process. Placeholders can't be reformatted, since the model never sees the real text. |
+| Job success semantics | A batch is only marked `done` if at least one segment succeeded, not just if nothing crashed | `translate_document()` catches failures per segment on purpose, so one bad segment never kills the whole batch, but that also meant a systemic failure (e.g. an invalid target-language name) went undetected: every segment failed, yet the job still reported `done`. Now checked explicitly, and marked `failed` with the underlying error instead. |
 | Manual editing scope | One capability only: overwrite a segment's translation text | Spec §6 asks for 5 capabilities (edit text, replace terms everywhere, add to glossary, comments, regenerate via AI), each its own engineering surface area (glossary write-paths, comment storage, a second paid AI call per regenerate). One slice was built for this MVP; the other four are straightforward additions on top of the same review screen, left for a later pass. |
 | Observability | Langfuse via OpenTelemetry auto-instrumentation of the Anthropic SDK | Every real Claude call (translation, language detection) is automatically traced with business context (which operation, which language pair, which segment) attached on top. |
-
-## Bugs found and fixed during development
-
-Two examples, found by testing against the real dataset documents:
-
-| Bug | Root cause | Fix |
-|---|---|---|
-| A systemic failure (e.g. an invalid target-language name) marked a translation job "done" even though every segment inside it had failed | `translate_document()` catches failures per segment on purpose, so one bad segment never kills the whole batch, but that also meant a systemic failure never raised at the job level | Check whether every segment in a batch failed; if so, mark the job `failed` with the underlying error, not `done` |
-| The AI invented markdown-link formatting around a plain URL and corrupted it while doing so | The model was being asked to faithfully reproduce a real URL as plain text | Placeholder substitution: the model never sees or has to reproduce the actual URL |
 
 ## Path to production
 
@@ -237,7 +228,7 @@ any MVP skips but a real deployment can't.
 | Quality check on tables | The contradiction-detector occasionally flags a table's own column header as "translated differently," since it groups by literal term name across the whole document | Exclude terms whose position marks them as a column header from the cross-document contradiction check |
 | Glossary data integrity | A few rows in the source spreadsheet have values in the wrong columns (a data issue, confirmed by reading the raw cells, not a parsing bug) | A real glossary management interface would validate this shape of error at entry time |
 | Glossary maintenance | A spreadsheet, reloaded fresh on every translation; adding a term means editing the file directly | A dedicated database table with a management UI: add/edit/delete, versioning, an approval workflow (spec §7) |
-| Users & permissions | None, single implicit user | Role-based access: Übersetzer / Prüfer / Administrator (spec §13) |
+| Users & permissions | No user concept at all, so the spec's three roles (Übersetzer/Prüfer/Administrator, §13) have nothing to attach to | Real accounts + role-based access, which auth (see Security below) is also a prerequisite for |
 | Project lifecycle | No archive, search, or history across sessions | Status transitions, search/filter, audit trail (spec §1, §11, §12) |
 | Repeat content | Every segment translated fresh, every time | Translation memory: cache and reuse previous translations for repeated content (spec Phase 2) |
 
@@ -251,7 +242,7 @@ consumer product. That target shapes every row below.
 | Service architecture | A modular monolith: `api → db → ai → parsers`, one deployable unit | Stays a monolith. Microservices only pay off with independent per-service scaling or multiple teams deploying independently; neither applies here |
 | Deployment & scaling | Local processes, started manually on one machine | Docker Compose (API + Postgres containers) on a single server is enough for ~10 concurrent users. Kubernetes becomes justified past 100k+ daily users or 5+ independently-scaling services, neither of which applies here |
 | Security & input hardening | `upload_validator.py` checks file signature, structure, and real parseability before anything reaches the AI; no auth on any endpoint, no rate limiting | Auth per user, rate limiting, a hard upload size ceiling enforced before a file reaches the parser, dependency and file-format vulnerability scanning |
-| Cost control | Prompt caching already cuts repeated system-prompt cost, but nothing stops one user from re-translating the same document 20 times in a row | Per-user/per-project quotas, translation memory doing double duty as a cost control, cost dashboards built on the same Langfuse data already captured |
+| Cost control | Prompt caching already cuts repeated system-prompt cost, but nothing stops one user from re-translating the same document 20 times in a row | Per-user/per-project quotas, plus cost dashboards built on the same Langfuse data already captured. Translation memory (see Feature scope above) would help here too, as a side effect |
 | Monitoring & alerting | Langfuse shows what happened on any single call, after the fact, only if someone opens the dashboard | Alerting on job failure rate, latency, and cost thresholds; a health-check endpoint wired into real uptime monitoring |
 | CI/CD | Tests run locally, on demand (`pytest`) | A pipeline that runs the same suite automatically on every push, blocks merges on failure, and deploys through a staging environment before production |
 | Data handling & compliance | Uploaded documents and their translations live in Postgres indefinitely, no retention policy | A defined retention/deletion policy and data-residency review, relevant here specifically because these are real business documents |
