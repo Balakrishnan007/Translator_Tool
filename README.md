@@ -70,7 +70,6 @@ Mapped against the task document's own workflow diagram (§17):
 | Glossarbegriffe anwenden | Done: the core feature |
 | Manuelle Korrektur | Done, one capability of five (see [Key decisions](#key-decisions-and-why)) |
 | Qualitätsprüfung | Done: all 5 checks from §8 |
-| Freigabe | Done: export returns 409 until this happens |
 | Export | Done: Word/Excel/PDF, 3 content modes |
 | Projekt wird archiviert | Not built: project lifecycle management, out of MVP scope |
 
@@ -86,7 +85,7 @@ first step was building a realistic dataset to develop and test the translation 
 
 `dataset/` contains:
 
-- 10 documents across the 4 target languages (German, English, Dutch, French) and the 3 formats
+- 12 documents across the 4 target languages (German, English, Dutch, French) and the 3 formats
   that could realistically be produced (Word, Excel, PDF). InDesign's `.imdd` was not created,
   since it's Adobe's proprietary save format and requires the actual application to produce one
 - Substantial rather than minimal files: the German technical spec runs 8 pages with several
