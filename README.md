@@ -11,7 +11,7 @@ it encounters, running an automated quality check, and requiring human approval 
 
 1. [What it actually does](#what-it-actually-does)
 2. [Spec compliance](#spec-compliance)
-3. [Data preparation: no dataset was provided](#data-preparation-no-dataset-was-provided)
+3. [Data preparation](#data-preparation)
 4. [Architecture](#architecture)
 5. [How a translation works](#how-a-translation-works)
 6. [Key decisions, and why](#key-decisions-and-why)
@@ -61,34 +61,34 @@ Mapped against the task document's own workflow diagram (§17):
 
 | Spec step | Status |
 |---|---|
-| Neues Projekt | Done — auto-created on upload (§2) |
+| Neues Projekt | Done: auto-created on upload (§2) |
 | Datei hochladen | Done |
-| Sprache auswählen | Done — auto-detected source, manual target selection |
-| Übersetzung starten | Done — concurrent across languages and segments |
-| Vorschau erzeugen | Done — side-by-side original/translation |
-| Fachbegriffe hervorheben | Done — colors match the spec's own mapping |
-| Glossarbegriffe anwenden | Done — the core feature |
+| Sprache auswählen | Done: auto-detected source, manual target selection |
+| Übersetzung starten | Done: concurrent across languages and segments |
+| Vorschau erzeugen | Done: side-by-side original/translation |
+| Fachbegriffe hervorheben | Done: colors match the spec's own mapping |
+| Glossarbegriffe anwenden | Done: the core feature |
 | Manuelle Korrektur | Done, one capability of five (see [Key decisions](#key-decisions-and-why)) |
-| Qualitätsprüfung | Done — all 5 checks from §8 |
-| Freigabe | Done — export returns 409 until this happens |
-| Export | Done — Word/Excel/PDF, 3 content modes |
-| Projekt wird archiviert | Not built — project lifecycle management, out of MVP scope |
+| Qualitätsprüfung | Done: all 5 checks from §8 |
+| Freigabe | Done: export returns 409 until this happens |
+| Export | Done: Word/Excel/PDF, 3 content modes |
+| Projekt wird archiviert | Not built: project lifecycle management, out of MVP scope |
 
 Not built at all: glossary management UI (§7), user roles/permissions (§13), dashboard (§14),
 settings (§15), InDesign support, and everything listed under the spec's own "Phase 2" heading.
 See [Path to production](#path-to-production) for what each would take.
 
-## Data preparation: no dataset was provided
+## Data preparation
 
 The task document (§2) specifies which file formats the tool must support: Word, Excel, PDF,
-and InDesign. No sample documents came with the brief, so a dataset had to be built before any
-translation logic could be tested against something real.
+and InDesign. As agreed with the task owner, sourcing sample documents was left to me, so the
+first step was building a realistic dataset to develop and test the translation logic against.
 
 `dataset/` contains:
 
 - 10 documents across the 4 target languages (German, English, Dutch, French) and the 3 formats
-  that could realistically be produced (Word, Excel, PDF) — InDesign's `.imdd` was not created,
-  since it's Adobe's proprietary save format and requires the actual application to produce
+  that could realistically be produced (Word, Excel, PDF). InDesign's `.imdd` was not created,
+  since it's Adobe's proprietary save format and requires the actual application to produce one
 - Substantial rather than minimal files: the German technical spec runs 8 pages with several
   real tables (pricing, hardware, dimensions), enough to actually exercise the parsing,
   table-context, and quality-check logic
@@ -115,7 +115,7 @@ FastAPI backend (Python)
    └──►  Langfuse      every real AI call, traced with business context
 ```
 
-**Backend**, layered — a request only flows downward:
+**Backend**, layered: a request only flows downward:
 
 ```
 api/        FastAPI routes
@@ -144,31 +144,31 @@ real internal structure (paragraphs/tables, rows), read directly; PDF has none, 
 detected by ruling lines and everything else is grouped into paragraph-like blocks by a
 sentence-boundary heuristic, with table regions excluded on a per-word basis so a header
 spanning a ruling line can't get sliced in half. All three converge on the same output shape: an
-ordered list of small segments (paragraph, table row, or table cell) — the unit small enough to
+ordered list of small segments (paragraph, table row, or table cell): the unit small enough to
 translate in parallel and retry individually, and exactly what the review screen needs anyway.
 Table cells also carry their column header and the rest of their row forward as context, since a
 bare cell containing `"900"` is meaningless on its own.
 
-**Language detection.** Its own Claude call, not a local statistical detector — two local
+**Language detection.** Its own Claude call, not a local statistical detector: two local
 options (FastText, Lingua) were tested directly and neither reliably cleared 90% confidence
 across the 9 real test documents, tripped up by short fragments and vocabulary shared between
 related languages (e.g. "Korpus" is spelled identically in German and Dutch). Detection runs on
 an evenly-spaced sample across the whole document (avoids a letterhead in the wrong language
-skewing the result), capped around 1,500 characters — in line with published research on where
+skewing the result), capped around 1,500 characters, in line with published research on where
 language-ID accuracy plateaus, and verified at 9/9 correct on the real dataset.
 
 **Building the request.** Per segment, per target language: a fixed rule set (glossary matches
 use their mandated translation, synonyms count as matches, do-not-translate terms stay
 byte-for-byte identical, bare numbers/codes don't get a sentence invented around them), the
 glossary filtered to just the relevant source→target pair, table-cell context, and the segment
-text with URLs already swapped for placeholder tokens — the model once invented markdown link
+text with URLs already swapped for placeholder tokens: the model once invented markdown link
 syntax around a plain URL and corrupted it while reproducing it, so it now never sees the real
 URL text at all.
 
 **Structured output.** Claude's tool-calling forces two things back together: the translation,
-and a full term breakdown. Every notable term gets exactly one category — `glossary`,
+and a full term breakdown. Every notable term gets exactly one category: `glossary`,
 `protected`, `kitchen_technical`, `ambiguous`, or `unknown` (explicitly *not* generic IT/business
-terms even when confidently recognized) — plus the translation used, up to 3 alternatives
+terms even when confidently recognized), plus the translation used, up to 3 alternatives
 considered, and a one-line reason. That's decided in the same call as the translation, and it's
 what powers both the highlighting and half the quality check.
 
@@ -179,13 +179,13 @@ used, alternatives, description, and the complete glossary entry for glossary ma
 
 **Retries and enrichment.** An empty, placeholder-like, or malformed result triggers up to 2
 retries before the segment is flagged for human review instead. Separately, the full glossary
-entry (all 4 languages) is attached to every glossary-matched term by a plain in-memory lookup —
+entry (all 4 languages) is attached to every glossary-matched term by a plain in-memory lookup,
 no second AI call, so it's free and can't be hallucinated.
 
 **Concurrency.** Every (segment, language) pair translates at the same time via a thread pool.
 The cost: each call is isolated, so segment 50 has no idea what segment 200 decided for the same
 word. A separate plain-code pass runs afterward, once every result is back, specifically to
-catch what isolated calls can't see themselves — the same term rendered two different ways, a
+catch what isolated calls can't see themselves: the same term rendered two different ways, a
 number that silently changed decimal format partway through, a segment identical to its own
 source.
 
@@ -211,23 +211,22 @@ configured, tracing quietly does nothing rather than breaking a translation.
 | Database schema | Postgres + SQLAlchemy + Alembic migrations | JSONB columns for `terms` (per-term classification) and `structure` (format-specific parser output): genuinely variable shape, would be mostly-empty rigid columns otherwise. |
 | Prompt caching | `cache_control: ephemeral` on the system prompt, verified via real token accounting | The system prompt (rules + glossary) is identical across every segment call for a given language pair; the per-segment context is deliberately kept *out* of the cached prefix, since interpolating it in defeats caching (the prefix would differ on every call, meaning nothing is ever a cache hit). |
 | URL handling | Placeholder substitution (`__URL_0__`) before the AI ever sees a URL | The model once invented markdown link syntax around a plain URL and corrupted it in the process. Placeholders can't be reformatted, since the model never sees the real text. |
-| Manual editing scope | One capability only: overwrite a segment's translation text | Spec §6 asks for 5 capabilities (edit text, replace terms everywhere, add to glossary, comments, regenerate via AI), each separate engineering surface area (glossary write-paths, comment storage, a second paid AI call per regenerate). One representative slice was built; the rest are named and scoped out explicitly in the table above, not silently skipped. |
+| Manual editing scope | One capability only: overwrite a segment's translation text | Spec §6 asks for 5 capabilities (edit text, replace terms everywhere, add to glossary, comments, regenerate via AI), each its own engineering surface area (glossary write-paths, comment storage, a second paid AI call per regenerate). One slice was built for this MVP; the other four are straightforward additions on top of the same review screen, left for a later pass. |
 | Observability | Langfuse via OpenTelemetry auto-instrumentation of the Anthropic SDK | Every real Claude call (translation, language detection) is automatically traced with business context (which operation, which language pair, which segment) attached on top. |
 
 ## Bugs found and fixed during development
 
-Two representative examples, found by testing against the real dataset documents rather than
-hypothetical edge cases:
+Two examples, found by testing against the real dataset documents:
 
 | Bug | Root cause | Fix |
 |---|---|---|
-| A systemic failure (e.g. an invalid target-language name) marked a translation job "done" even though every segment inside it had failed | `translate_document()` catches failures per segment on purpose, so one bad segment never kills the whole batch — but that also meant a systemic failure never raised at the job level | Check whether every segment in a batch failed; if so, mark the job `failed` with the underlying error, not `done` |
+| A systemic failure (e.g. an invalid target-language name) marked a translation job "done" even though every segment inside it had failed | `translate_document()` catches failures per segment on purpose, so one bad segment never kills the whole batch, but that also meant a systemic failure never raised at the job level | Check whether every segment in a batch failed; if so, mark the job `failed` with the underlying error, not `done` |
 | The AI invented markdown-link formatting around a plain URL and corrupted it while doing so | The model was being asked to faithfully reproduce a real URL as plain text | Placeholder substitution: the model never sees or has to reproduce the actual URL |
 
 ## Path to production
 
-This is an MVP built to prove the core mechanism — glossary-constrained, self-classifying,
-quality-checked translation — actually works, not the final system. Two kinds of gaps remain:
+This is an MVP built to prove the core mechanism (glossary-constrained, self-classifying,
+quality-checked translation) actually works, not the final system. Two kinds of gaps remain:
 product features the spec describes that were deliberately scoped down, and operational maturity
 any MVP skips but a real deployment can't.
 
@@ -256,7 +255,7 @@ consumer product. That target shapes every row below.
 | Cost control | Prompt caching already cuts repeated system-prompt cost, but nothing stops one user from re-translating the same document 20 times in a row | Per-user/per-project quotas, translation memory doing double duty as a cost control, cost dashboards built on the same Langfuse data already captured |
 | Monitoring & alerting | Langfuse shows what happened on any single call, after the fact, only if someone opens the dashboard | Alerting on job failure rate, latency, and cost thresholds; a health-check endpoint wired into real uptime monitoring |
 | CI/CD | Tests run locally, on demand (`pytest`) | A pipeline that runs the same suite automatically on every push, blocks merges on failure, and deploys through a staging environment before production |
-| Data handling & compliance | Uploaded documents and their translations live in Postgres indefinitely, no retention policy | A defined retention/deletion policy and data-residency review — relevant here specifically because these are real business documents |
+| Data handling & compliance | Uploaded documents and their translations live in Postgres indefinitely, no retention policy | A defined retention/deletion policy and data-residency review, relevant here specifically because these are real business documents |
 
 ## Project structure
 
