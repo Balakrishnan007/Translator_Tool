@@ -7,25 +7,36 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
-  <header class="site-header">
-    <img src="Rotpunkt.png" alt="Rotpunkt Küchen" class="logo">
-    <p class="tagline">Übersetzungstool</p>
-  </header>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <button id="sidebar-new-project-btn" class="sidebar-new-btn">+ Neues Projekt</button>
+      <div class="sidebar-project-list" id="sidebar-project-list">
+        <!-- Populated by loadSidebarProjects(); persists across every screen, unlike #app -->
+      </div>
+    </aside>
 
-  <nav class="steps" id="steps">
-    <div class="step is-active" data-step="upload">1. Hochladen</div>
-    <div class="step" data-step="translate">2. Übersetzen</div>
-    <div class="step" data-step="review">3. Qualitätsprüfung</div>
-    <div class="step" data-step="export">4. Export</div>
-  </nav>
+    <div class="main-column">
+      <header class="site-header">
+        <img src="Rotpunkt.png" alt="Rotpunkt Küchen" class="logo">
+        <p class="tagline">Übersetzungstool</p>
+      </header>
 
-  <main id="app">
-    <!-- Each step's screen renders here, built one task at a time -->
-  </main>
+      <nav class="steps" id="steps">
+        <div class="step is-active" data-step="upload">1. Hochladen</div>
+        <div class="step" data-step="translate">2. Übersetzen</div>
+        <div class="step" data-step="review">3. Qualitätsprüfung</div>
+        <div class="step" data-step="export">4. Export</div>
+      </nav>
 
-  <script src="app.js?v=12"></script>
+      <main id="app">
+        <!-- Each step's screen renders here, built one task at a time -->
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js?v=13"></script>
 </body>
 </html>

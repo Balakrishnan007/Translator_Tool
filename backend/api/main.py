@@ -201,6 +201,29 @@ async def create_project(file: UploadFile = File(...), session: Session = Depend
         os.unlink(tmp_path)
 
 
+@app.get("/projects", response_model=list[ProjectResponse])
+def list_projects(session: Session = Depends(get_session)):
+    """Backs the project sidebar (spec §1: "Projekt erneut öffnen", "Projekte
+    suchen und filtern" -- this is the listing half; search/filter isn't
+    built yet, see the README's feature-scope table)."""
+    projects = crud.list_projects(session)
+    return [
+        _project_to_response(p, crud.count_segments(session, p.id), p.source_language, p.detection_confidence)
+        for p in projects
+    ]
+
+
+@app.get("/projects/{project_id}/translations", response_model=list[TranslationResponse])
+def list_translations(project_id: uuid.UUID, session: Session = Depends(get_session)):
+    """What reopening a project from the sidebar needs: which target
+    languages already have a job, and what state each is in, without
+    pulling every segment for languages the user hasn't clicked into yet."""
+    project = crud.get_project(session, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return [TranslationResponse.model_validate(t) for t in crud.list_translations(session, project_id)]
+
+
 @app.post("/projects/{project_id}/translations", response_model=list[TranslationResponse], status_code=202)
 def create_translation(
     project_id: uuid.UUID,

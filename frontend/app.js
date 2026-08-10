@@ -81,6 +81,91 @@ const state = {
 
 let pollIntervalId = null;
 
+// The sidebar's own copy of the project list, separate from `state`. It
+// persists across every screen (unlike #app's contents), so it's kept as
+// module-level data rather than something renderX() functions manage.
+let sidebarProjects = [];
+
+async function loadSidebarProjects() {
+  try {
+    sidebarProjects = await apiFetch(`${API_BASE}/projects`, {}, "Fehler beim Laden der Projekte");
+    renderSidebar();
+  } catch (err) {
+    // A sidebar that fails to load must never block the rest of the app --
+    // it's a convenience layer on top of data that's already saved, not a
+    // dependency the main wizard needs to function.
+    console.error("Failed to load project list:", err);
+  }
+}
+
+function renderSidebar() {
+  const listEl = document.getElementById("sidebar-project-list");
+  if (!listEl) return;
+
+  if (sidebarProjects.length === 0) {
+    listEl.innerHTML = `<p class="sidebar-empty">Noch keine Projekte</p>`;
+    return;
+  }
+
+  listEl.innerHTML = sidebarProjects
+    .map((p) => {
+      const isActive = state.project?.id === p.id;
+      const langLabel = LANGUAGE_LABELS_DE[p.source_language] ?? p.source_language ?? "?";
+      const dateLabel = new Date(p.uploaded_at).toLocaleDateString("de-DE");
+      return `
+        <div class="sidebar-project-item ${isActive ? "is-active" : ""}" data-project-id="${p.id}">
+          <span class="sidebar-project-filename">${escapeHtml(p.filename)}</span>
+          <span class="sidebar-project-meta"><span>${langLabel}</span><span>&middot;</span><span>${dateLabel}</span></span>
+        </div>
+      `;
+    })
+    .join("");
+
+  listEl.querySelectorAll(".sidebar-project-item").forEach((el) =>
+    el.addEventListener("click", () => openProject(el.dataset.projectId))
+  );
+}
+
+// Reopening a project (spec §1: "Projekt erneut öffnen") has to land on
+// different screens depending on how far it got: straight back to language
+// selection if no translation was ever started, or the status/result view
+// if one was. Reuses renderTranslateScreen()/renderTranslationQueued()
+// unchanged -- this is a routing decision, not a new screen.
+async function openProject(projectId) {
+  const project = sidebarProjects.find((p) => p.id === projectId);
+  if (!project) return;
+
+  stopPolling();
+  state.project = project;
+  state.translations = null;
+  state.translationDetails = {};
+  state.qualityChecks = {};
+  state.currentTranslationId = null;
+  termRegistry = [];
+  renderSidebar();
+
+  render(`<h1>${escapeHtml(project.filename)}</h1><p class="subtitle">Wird geladen …</p>`);
+
+  try {
+    const translations = await apiFetch(
+      `${API_BASE}/projects/${projectId}/translations`,
+      {},
+      "Fehler beim Laden der Übersetzungen"
+    );
+
+    Object.values(stepEls).forEach((el) => el.classList.remove("is-active", "is-done"));
+    markStepDone("upload");
+
+    if (translations.length === 0) {
+      renderTranslateScreen();
+    } else {
+      renderTranslationQueued(translations);
+    }
+  } catch (err) {
+    render(`<h1>Fehler</h1><p class="status-message status-error">${escapeHtml(err.message)}</p>`);
+  }
+}
+
 function stopPolling() {
   if (pollIntervalId) {
     clearInterval(pollIntervalId);
@@ -289,6 +374,7 @@ async function uploadFile(file) {
     const project = await apiFetch(`${API_BASE}/projects`, { method: "POST", body: formData }, "Fehler beim Hochladen");
     state.project = project;
     renderUploadResult(project);
+    loadSidebarProjects(); // new project should appear in the sidebar immediately
   } catch (err) {
     statusEl.innerHTML = `<p class="status-message status-error">Fehler: ${err.message}</p>`;
   }
@@ -566,6 +652,7 @@ function resetApp() {
   });
 
   renderUploadScreen();
+  renderSidebar(); // clears the now-stale active highlight
 }
 
 function renderApprovalSection(detail) {
@@ -772,6 +859,8 @@ function wireExportSection(translationId) {
 
 function init() {
   renderUploadScreen();
+  loadSidebarProjects();
+  document.getElementById("sidebar-new-project-btn").addEventListener("click", resetApp);
 }
 
 init();
