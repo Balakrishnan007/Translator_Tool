@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """Loads the glossary Excel file into a plain list of dicts."""
 
+from pathlib import Path
+
 import openpyxl
 
-GLOSSARY_PATH = r"D:\Rotpunküchen\dataset\00_Glossary_Rotpunkt.xlsx"
+# Relative to this file's own location, not a hardcoded machine-specific
+# path -- backend/ai/glossary_loader.py -> up 3 levels is the project root.
+GLOSSARY_PATH = Path(__file__).resolve().parent.parent.parent / "dataset" / "00_Glossary_Rotpunkt.xlsx"
 
 
 def load_glossary(path: str = GLOSSARY_PATH) -> list[dict]:
