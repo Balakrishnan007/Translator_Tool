@@ -1,0 +1,14 @@
+# Secrets: never baked into an image layer, only passed in at runtime.
+.env
+
+# Local virtual environment -- the image builds its own via `uv sync`.
+.venv/
+
+# Local caches.
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+*.pyc
+
+# Claude Code session data, not part of the application.
+.claude/

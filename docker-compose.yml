@@ -1,0 +1,52 @@
+# Starts db, backend, and frontend together: `docker compose up`.
+# Backend/frontend build locally from the Dockerfiles in this repo.
+# Requires backend/.env with ANTHROPIC_API_KEY (Langfuse keys optional).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: rotpunkt_translator
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Blocks backend startup until Postgres accepts real connections.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - backend/.env
+    environment:
+      # Overrides .env's DATABASE_URL: containers reach each other by
+      # service name ("db"), not "localhost".
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/rotpunkt_translator
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # dataset/ is outside the build context; mounted at runtime instead.
+      # glossary_loader.py resolves 3 levels up from itself -> /dataset here.
+      - ./dataset:/dataset:ro
+    ports:
+      - "8000:8000"
+    # Runs migrations on every start (no-op if already current).
+    command: sh -c "uv run alembic upgrade head && uv run uvicorn api.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5500:5500"
+    command: python -m http.server 5500
+
+volumes:
+  postgres_data:
