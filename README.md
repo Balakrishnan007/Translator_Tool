@@ -279,10 +279,27 @@ dataset/        Real, varied test documents (German/English/Dutch/French; Word/E
 
 ## Running it yourself
 
-Two terminals, both from a machine with Postgres running and `backend/.env` configured
-(`ANTHROPIC_API_KEY`, `DATABASE_URL`, Langfuse keys):
+Either option needs `backend/.env` populated first (`ANTHROPIC_API_KEY`, `DATABASE_URL`,
+Langfuse keys).
+
+### Option A: Docker (recommended)
+
+One command, from the project root. Builds the backend, starts Postgres, and runs the
+database migrations automatically:
 
 ```bash
+docker compose up --build
+```
+
+### Option B: Manual
+
+Two terminals, plus a one-time database setup:
+
+```bash
+# One-time: create the database and apply migrations
+createdb rotpunkt_translator
+cd backend && uv run alembic upgrade head
+
 # Terminal 1: backend
 cd backend
 uv sync                                          # only needed once, or on a new machine
@@ -292,5 +309,7 @@ uv run uvicorn api.main:app --reload --port 8000
 cd frontend
 python -m http.server 5500
 ```
+
+---
 
 Open `http://localhost:5500`. The interactive API explorer is at `http://localhost:8000/docs`.
