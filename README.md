@@ -279,10 +279,11 @@ dataset/        Real, varied test documents (German/English/Dutch/French; Word/E
 
 ## Running it yourself
 
-Either option needs `backend/.env` populated first (`ANTHROPIC_API_KEY`, `DATABASE_URL`,
-Langfuse keys).
-
 ### Option A: Docker (recommended)
+
+Needs `backend/.env` populated with `ANTHROPIC_API_KEY` (Langfuse keys optional).
+`DATABASE_URL` doesn't need to be set correctly here -- Docker Compose overrides it
+automatically to point at the containerized database.
 
 One command, from the project root. Builds the backend, starts Postgres, and runs the
 database migrations automatically:
@@ -293,7 +294,8 @@ docker compose up --build
 
 ### Option B: Manual
 
-Two terminals, plus a one-time database setup:
+Needs `backend/.env` populated with `ANTHROPIC_API_KEY`, a working `DATABASE_URL`, and
+Langfuse keys (optional). Two terminals, plus a one-time database setup:
 
 ```bash
 # One-time: create the database and apply migrations
